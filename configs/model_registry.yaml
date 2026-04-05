@@ -1,0 +1,260 @@
+# Model Registry
+# Each component has a primary model and alternatives that can be swapped in.
+# Add new models here as they become available.
+
+models:
+  # ─── PDF Parsing ──────────────────────────────────────────────
+  pdf_parser:
+    primary: "mineru"
+    alternatives:
+      mineru:
+        package: "magic-pdf"
+        install: "pip install -U magic-pdf[full]"
+        gpu_memory: "6GB"
+        license: "AGPL-3.0"
+        benchmark: "86.2 OmniDocBench v1.5"
+        strengths: ["Best overall accuracy", "Built-in figure/table/formula", "Active development"]
+        weaknesses: ["Higher GPU memory", "AGPL license restrictions"]
+        url: "https://github.com/opendatalab/MinerU"
+      nougat:
+        package: "nougat-ocr"
+        install: "pip install nougat-ocr"
+        gpu_memory: "8GB"
+        license: "CC-BY-NC-4.0"
+        benchmark: "Best on scientific LaTeX"
+        strengths: ["Native LaTeX output", "Best for math-heavy papers"]
+        weaknesses: ["No figure extraction", "Non-commercial license", "Slower"]
+        url: "https://github.com/facebookresearch/nougat"
+      marker:
+        package: "marker-pdf"
+        install: "pip install marker-pdf"
+        gpu_memory: "4GB"
+        license: "GPL-3.0"
+        benchmark: "Good on clean PDFs"
+        strengths: ["Fast", "Lower GPU requirement"]
+        weaknesses: ["Weaker on complex layouts", "Limited language support"]
+        url: "https://github.com/VikParuchuri/marker"
+      docling:
+        package: "docling"
+        install: "pip install docling"
+        gpu_memory: "4GB"
+        license: "MIT"
+        benchmark: "Good general purpose"
+        strengths: ["MIT license", "IBM-backed", "Good table extraction"]
+        weaknesses: ["Less specialized for scientific papers"]
+        url: "https://github.com/DS4SD/docling"
+      paddleocr_vl:
+        package: "paddleocr"
+        install: "pip install paddleocr"
+        gpu_memory: "2GB"
+        license: "Apache 2.0"
+        benchmark: "SOTA on element recognition"
+        strengths: ["Very lightweight", "109 languages", "Apache license"]
+        weaknesses: ["Newer, less battle-tested for full pipeline"]
+        url: "https://github.com/PaddlePaddle/PaddleOCR"
+
+  # ─── Vision-Language Models ───────────────────────────────────
+  figure_vlm:
+    primary: "qwen3-vl-8b"
+    alternatives:
+      qwen3-vl-8b:
+        model_id: "Qwen/Qwen3-VL-8B-Instruct"
+        type: "self-hosted"
+        gpu_memory: "16GB"
+        license: "Apache 2.0"
+        context_length: 256000
+        strengths: ["Best OCR", "Math reasoning", "Fast inference", "Open source"]
+        weaknesses: ["Smaller model — less nuance on complex figures"]
+        url: "https://github.com/QwenLM/Qwen3-VL"
+      qwen3-vl-72b:
+        model_id: "Qwen/Qwen3-VL-72B-Instruct"
+        type: "self-hosted"
+        gpu_memory: "80GB+"
+        license: "Apache 2.0"
+        context_length: 256000
+        strengths: ["Strongest open-source VLM overall", "Matches Gemini 2.5 Pro"]
+        weaknesses: ["Very high GPU requirement"]
+      internvl3-8b:
+        model_id: "OpenGVLab/InternVL3-8B"
+        type: "self-hosted"
+        gpu_memory: "16GB"
+        license: "MIT"
+        context_length: 32768
+        strengths: ["MIT license", "Strong general vision understanding", "Native multimodal pretraining"]
+        weaknesses: ["Slightly weaker on OCR/math than Qwen3-VL"]
+        url: "https://github.com/OpenGVLab/InternVL"
+      internvl3-78b:
+        model_id: "OpenGVLab/InternVL3-78B"
+        type: "self-hosted"
+        gpu_memory: "80GB+"
+        license: "MIT"
+        context_length: 32768
+        strengths: ["Top open-source MMMU score (72.2)", "Strong foundational understanding"]
+        weaknesses: ["Very high GPU requirement"]
+      gemini-2.5-pro:
+        model_id: "gemini-2.5-pro"
+        type: "api"
+        cost: "$0.30/1M input tokens"
+        license: "Commercial"
+        context_length: 1000000
+        strengths: ["Highest chart benchmark scores", "Very long context", "Multimodal"]
+        weaknesses: ["Data sent to Google", "Cost at scale"]
+      gemini-2.5-flash:
+        model_id: "gemini-2.5-flash"
+        type: "api"
+        cost: "$0.03/1M input tokens"
+        license: "Commercial"
+        context_length: 1000000
+        strengths: ["Very cheap", "Fast", "Good enough for most charts"]
+        weaknesses: ["Lower accuracy than Pro", "Data sent to Google"]
+      gpt-5.2:
+        model_id: "gpt-5.2"
+        type: "api"
+        cost: "~$0.50/1M input tokens"
+        license: "Commercial"
+        context_length: 1000000
+        strengths: ["Strong generalist", "Good structured output"]
+        weaknesses: ["Expensive", "Data sent to OpenAI"]
+
+  # ─── Reasoning LLMs ──────────────────────────────────────────
+  reasoning_llm:
+    primary: "claude-sonnet-4"
+    alternatives:
+      claude-sonnet-4:
+        model_id: "claude-sonnet-4-20250514"
+        type: "api"
+        cost: "$3/1M in, $15/1M out"
+        license: "Commercial"
+        strengths: ["Best structured scientific reasoning", "Reliable YAML/JSON", "Consistent multi-step"]
+        weaknesses: ["API only", "Cost at high volume"]
+      claude-opus-4.6:
+        model_id: "claude-opus-4-6"
+        type: "api"
+        cost: "Higher than Sonnet"
+        license: "Commercial"
+        strengths: ["Most capable Claude model", "Deepest reasoning"]
+        weaknesses: ["Slower", "More expensive", "May be overkill"]
+      deepseek-r1:
+        model_id: "deepseek-ai/DeepSeek-R1"
+        type: "self-hosted"
+        gpu_memory: "70B+ requires multi-GPU"
+        license: "MIT"
+        strengths: ["Free self-hosted", "Visible chain-of-thought", "Strong math reasoning"]
+        weaknesses: ["High GPU requirement", "Less consistent structured output"]
+      gemini-2.5-pro:
+        model_id: "gemini-2.5-pro"
+        type: "api"
+        cost: "$0.30/1M input tokens"
+        license: "Commercial"
+        strengths: ["Excellent scientific benchmarks", "Long context"]
+        weaknesses: ["Data to Google"]
+      qwen3-235b:
+        model_id: "Qwen/Qwen3-235B-A22B-Instruct"
+        type: "self-hosted"
+        gpu_memory: "MoE, ~50GB effective"
+        license: "Apache 2.0"
+        strengths: ["Competitive with proprietary", "Apache 2.0", "MoE efficient"]
+        weaknesses: ["Needs MoE-aware inference (vLLM/SGLang)"]
+
+  # ─── Embedding Models ────────────────────────────────────────
+  embedding:
+    primary: "bge-m3"
+    alternatives:
+      bge-m3:
+        model_id: "BAAI/bge-m3"
+        dimensions: 1024
+        context: 8192
+        gpu_memory: "2GB"
+        license: "MIT"
+        mteb_score: 63.0
+        features: ["dense", "sparse", "multi-vector"]
+        strengths: ["Hybrid retrieval", "Multilingual 100+", "Low resource", "Already in CSNL stack"]
+        weaknesses: ["Lower MTEB than newer models"]
+      qwen3-embedding-8b:
+        model_id: "Qwen/Qwen3-Embedding-8B"
+        dimensions: 1024
+        context: 8192
+        gpu_memory: "16GB"
+        license: "Apache 2.0"
+        mteb_score: 70.58
+        features: ["dense"]
+        strengths: ["Highest open-source MTEB", "Strong multilingual"]
+        weaknesses: ["Higher GPU requirement", "Dense only (no sparse)"]
+      voyage-3-large:
+        model_id: "voyage-3-large"
+        dimensions: "1024-2048"
+        context: 32000
+        gpu_memory: "API only"
+        license: "Commercial"
+        mteb_score: 67.8
+        features: ["dense", "matryoshka"]
+        strengths: ["Best commercial retrieval", "Long context"]
+        weaknesses: ["API only", "Cost"]
+      cohere-embed-v4:
+        model_id: "embed-v4"
+        dimensions: "variable"
+        context: 128000
+        gpu_memory: "API only"
+        license: "Commercial"
+        mteb_score: 65.2
+        features: ["dense", "compression"]
+        strengths: ["Longest context", "Enterprise ready"]
+        weaknesses: ["API only", "Cost"]
+      nv-embed-v2:
+        model_id: "nvidia/NV-Embed-v2"
+        dimensions: 4096
+        context: 32768
+        gpu_memory: "16GB"
+        license: "CC-BY-NC-4.0"
+        mteb_score: 69.32
+        features: ["dense"]
+        strengths: ["Highest English retrieval", "Based on Mistral-7B"]
+        weaknesses: ["Non-commercial license", "High dimensionality = storage cost"]
+      e5-mistral:
+        model_id: "intfloat/e5-mistral-7b-instruct"
+        dimensions: 4096
+        context: 32768
+        gpu_memory: "14GB"
+        license: "MIT"
+        mteb_score: 64.0
+        features: ["dense"]
+        strengths: ["MIT license", "Good balance"]
+        weaknesses: ["High dimensionality"]
+      nomic-embed-text:
+        model_id: "nomic-ai/nomic-embed-text-v1.5"
+        dimensions: 768
+        context: 8192
+        gpu_memory: "1GB"
+        license: "Apache 2.0"
+        mteb_score: 60.0
+        features: ["dense", "matryoshka"]
+        strengths: ["Fully open (weights+data+code)", "Very lightweight"]
+        weaknesses: ["Lower accuracy", "Degrades at long context"]
+      jina-v4:
+        model_id: "jinaai/jina-embeddings-v4"
+        dimensions: 2048
+        context: 8192
+        gpu_memory: "2GB"
+        license: "CC-BY-NC-4.0"
+        mteb_score: 65.0
+        features: ["dense", "task-specific LoRA"]
+        strengths: ["Task-adaptive via LoRA", "Good multilingual"]
+        weaknesses: ["Non-commercial license for weights"]
+
+  # ─── Multimodal Embedding (Future) ───────────────────────────
+  multimodal_embedding:
+    primary: null  # Not yet implemented
+    alternatives:
+      voyage-mm-3.5:
+        model_id: "voyage-multimodal-3.5"
+        type: "api"
+        license: "Commercial"
+        strengths: ["Text + image + video in same space"]
+        use_case: "Find figures visually similar to a query figure"
+      qwen3-vl-embedding-2b:
+        model_id: "Qwen/Qwen3-VL-Embedding-2B"
+        type: "self-hosted"
+        gpu_memory: "8GB"
+        license: "Apache 2.0"
+        strengths: ["Open source multimodal embedding", "Beat closed-source on cross-modal"]
+        use_case: "Text-to-figure and figure-to-text search"

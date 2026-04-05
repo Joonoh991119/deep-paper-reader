@@ -1,0 +1,150 @@
+# Deep Paper Reader — Pipeline Configuration
+# Adjust these parameters based on feedback loop results
+
+pipeline:
+  name: "deep-paper-reader"
+  version: "0.1.0"
+  target_domain: "neuroscience"
+  default_language: "en"  # Primary paper language
+  supported_languages: ["en", "ko"]  # For mixed-language support
+
+# ─── Stage 1: Skeleton Scan ────────────────────────────────────
+stage1:
+  # PDF Parsing
+  parser: "mineru"  # Options: mineru, nougat, marker, docling
+  parser_config:
+    auto_mode: true
+    language: "en"
+    output_format: "markdown"
+    extract_images: true
+    extract_tables: true
+    extract_formulas: true
+
+  # Layout Detection
+  layout_model: "doclayout-yolo"  # Options: doclayout-yolo, layoutlmv3, dit
+  
+  # Figure Extraction
+  figure_resolution: 300  # DPI — adjustable range: 150-600
+  figure_format: "png"
+  link_figures_to_captions: true
+
+  # Initial VLM Description
+  skeleton_vlm: "qwen3-vl-8b"  # Options: qwen3-vl-8b, qwen3-vl-72b, internvl3-8b, gemini-2.5-flash
+  skeleton_vlm_temperature: 0.1
+  skeleton_vlm_max_tokens: 256  # Keep initial descriptions brief
+
+  # Chunking
+  chunk_size: 512  # tokens — adjustable range: 256-2048
+  chunk_overlap: 64  # tokens
+
+# ─── Stage 2: Argument Extraction ──────────────────────────────
+stage2:
+  # Reasoning LLM
+  reasoning_model: "claude-sonnet-4"  # Options: claude-sonnet-4, deepseek-r1, gemini-2.5-pro, qwen3-235b
+  reasoning_temperature: 0.2
+  reasoning_max_tokens: 4096
+
+  # Prompt Chain Configuration
+  prompt_chain_depth: 5  # Number of chained prompts — adjustable: 3-8
+  prompt_chain_steps:
+    - "extract_background_claims"
+    - "identify_research_gap"
+    - "extract_main_claim"
+    - "formalize_hypotheses"
+    - "map_experimental_design"
+  
+  # Hypothesis Formalization
+  hypothesis_formality: "semi-formal"  # Options: casual, semi-formal, formal
+  require_directional_prediction: true
+  require_metric_specification: true
+  link_hypotheses_to_figures: true
+
+# ─── Stage 3: Figure Deep Interpretation ───────────────────────
+stage3:
+  # Figure VLM
+  figure_vlm: "qwen3-vl-8b"  # Options: qwen3-vl-8b, qwen3-vl-72b, internvl3-78b, gemini-2.5-pro
+  figure_vlm_temperature: 0.1  # Lower = more deterministic readings
+  figure_vlm_max_tokens: 2048
+
+  # Prediction Generation (uses reasoning_model from stage2)
+  prediction_specificity: "directional"  # Options: directional, quantitative, both
+  prediction_confidence_threshold: 0.3  # Below this, prediction is marked "low confidence"
+
+  # Quantitative Reading
+  num_quantitative_reads: 3  # How many data points to estimate per element — adjustable: 1-10
+  quantitative_tolerance: 0.15  # 15% tolerance for quantitative matching
+
+  # Prediction-Observation Matching (uses reasoning_model from stage2)
+  match_threshold: 0.6  # Confidence threshold for "supported"
+  flag_surprises: true  # Highlight unexpected findings
+
+  # Chart-specific model (optional)
+  use_chart_specialist: false  # Enable ChartVLM/EvoChart for difficult figures
+  chart_specialist_model: null  # Set to "chartvlm" or "evochart" if enabled
+
+# ─── Stage 4: Discussion Critical Reading ──────────────────────
+stage4:
+  # Uses same reasoning_model as stage2
+  critical_depth: "moderate"  # Options: brief, moderate, deep
+  identify_unacknowledged_limitations: true
+  identify_missing_alternatives: true
+  max_tokens: 2048
+
+# ─── Embedding ─────────────────────────────────────────────────
+embedding:
+  model: "bge-m3"  # Options: bge-m3, qwen3-embedding-8b, voyage-3-large, cohere-embed-v4
+  dimensions: 1024
+  enable_sparse: true  # BGE-M3 sparse retrieval
+  enable_multi_vector: false  # ColBERT-style — disable initially for simplicity
+  
+  # Multi-level embedding weights (for combined search)
+  level_weights:
+    paper_skeleton: 0.30
+    hypothesis: 0.25
+    figure_analysis: 0.25
+    prediction_match: 0.10
+    discussion: 0.10
+
+  # Storage
+  vector_store: "lightrag"  # Existing CSNL infrastructure
+  index_name: "dpr_papers"
+
+# ─── Feedback Loop ─────────────────────────────────────────────
+feedback:
+  # Review Agent
+  enable_review_agent: true
+  review_agent_model: "claude-sonnet-4"  # Same model, different system prompt
+  review_agent_temperature: 0.3  # Slightly higher for diverse critiques
+
+  # Scoring Thresholds
+  rerun_threshold: 2.5  # Average score below this triggers re-run consideration
+  parameter_adjust_threshold: 3  # Minimum papers with same suggestion before adjusting
+
+  # User Feedback
+  enable_user_feedback: false  # Enable when web UI is built
+  feedback_storage: "sqlite"  # or "postgresql"
+
+  # Logging
+  log_all_outputs: true
+  log_review_scores: true
+  log_parameter_changes: true
+
+# ─── Infrastructure ────────────────────────────────────────────
+infrastructure:
+  # Local GPU
+  gpu_device: "cuda:0"  # or "mps" for Mac Studio
+  max_gpu_memory: "24GB"  # Adjust based on available GPU
+
+  # API Configuration
+  anthropic_api_key_env: "ANTHROPIC_API_KEY"
+  google_api_key_env: "GOOGLE_API_KEY"  # For Gemini fallback
+  
+  # Processing
+  batch_size: 4  # Papers processed in parallel
+  timeout_per_stage: 300  # seconds
+  retry_on_failure: 2
+
+  # Output
+  output_dir: "./output"
+  output_format: "yaml"  # Options: yaml, json
+  save_intermediate: true  # Save each stage's output separately

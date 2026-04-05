@@ -1,0 +1,118 @@
+# Feedback Loop Thresholds
+# These control when automatic adjustments are triggered
+
+scoring:
+  # Minimum average score before triggering a re-run
+  rerun_threshold: 2.5
+  
+  # Minimum number of papers with same suggestion before parameter change
+  parameter_adjust_min_papers: 3
+  
+  # Window size for rolling average calculations
+  rolling_window: 5
+
+# Per-stage thresholds and adjustment rules
+stage1:
+  dimensions:
+    - name: "section_boundaries"
+      weight: 0.3
+    - name: "figure_caption_pairing"
+      weight: 0.3
+    - name: "reading_order"
+      weight: 0.2
+    - name: "equation_completeness"
+      weight: 0.2
+  
+  adjustments:
+    - trigger: "reading_order_avg < 2.5"
+      parameter: "stage1.chunk_size"
+      action: "decrease_by"
+      value: 128
+      min: 256
+      max: 2048
+
+    - trigger: "figure_caption_pairing_avg < 3.0"
+      parameter: "stage1.figure_resolution"
+      action: "increase_by"
+      value: 50
+      min: 150
+      max: 600
+
+stage2:
+  dimensions:
+    - name: "gap_identification"
+      weight: 0.25
+    - name: "hypothesis_formality"
+      weight: 0.30
+    - name: "operationalization"
+      weight: 0.25
+    - name: "design_mapping"
+      weight: 0.20
+  
+  adjustments:
+    - trigger: "hypothesis_formality_avg < 3.0"
+      parameter: "stage2.prompt_chain_depth"
+      action: "increase_by"
+      value: 1
+      min: 3
+      max: 8
+
+    - trigger: "hypothesis_formality_avg < 2.5"
+      parameter: "stage2.hypothesis_formality"
+      action: "set_to"
+      value: "formal"
+
+stage3:
+  dimensions:
+    - name: "axes_identification"
+      weight: 0.20
+    - name: "legend_mapping"
+      weight: 0.20
+    - name: "quantitative_reading"
+      weight: 0.25
+    - name: "error_bar_type"
+      weight: 0.10
+    - name: "prediction_match"
+      weight: 0.25
+  
+  adjustments:
+    - trigger: "axes_identification_avg < 3.0"
+      parameter: "stage3.figure_vlm_temperature"
+      action: "decrease_by"
+      value: 0.05
+      min: 0.0
+      max: 0.5
+
+    - trigger: "quantitative_reading_avg < 3.0"
+      parameter: "stage3.num_quantitative_reads"
+      action: "increase_by"
+      value: 2
+      min: 1
+      max: 10
+
+    - trigger: "prediction_match_avg < 2.5"
+      parameter: "stage3.prediction_specificity"
+      action: "set_to"
+      value: "quantitative"
+
+stage4:
+  dimensions:
+    - name: "author_interpretation"
+      weight: 0.25
+    - name: "alternative_explanations"
+      weight: 0.35
+    - name: "limitations"
+      weight: 0.40
+  
+  adjustments:
+    - trigger: "alternative_explanations_avg < 3.0"
+      parameter: "stage4.critical_depth"
+      action: "set_to"
+      value: "deep"
+
+# Logging
+logging:
+  store_all_scores: true
+  store_all_adjustments: true
+  export_format: "yaml"
+  export_path: "./feedback_logs/"

@@ -1,0 +1,75 @@
+[project]
+name = "deep-paper-reader"
+version = "0.1.0"
+description = "Comprehension-driven scientific paper parsing & embedding pipeline"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "CSNL Lab", email = "csnl@snu.ac.kr"}
+]
+
+[project.optional-dependencies]
+# Core parsing
+parsing = [
+    "magic-pdf[full]",     # MinerU
+    "pymupdf>=1.24.0",     # PDF manipulation
+    "Pillow>=10.0",        # Image processing
+]
+
+# VLM inference
+vlm = [
+    "transformers>=4.45.0",
+    "torch>=2.1.0",
+    "accelerate>=0.30.0",
+    "qwen-vl-utils>=0.0.14",
+]
+
+# LLM APIs
+api = [
+    "anthropic>=0.40.0",   # Claude API
+    "openai>=1.50.0",      # OpenAI/compatible APIs
+    "google-genai>=1.0.0", # Gemini API
+]
+
+# Embedding
+embedding = [
+    "sentence-transformers>=3.0.0",
+    "FlagEmbedding>=1.2.0",  # BGE-M3
+]
+
+# Feedback & storage
+feedback = [
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+]
+
+# Full installation
+all = [
+    "deep-paper-reader[parsing,vlm,api,embedding,feedback]",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",          # CLI output
+]
+
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.5.0",
+]
+
+[project.scripts]
+dpr = "src.cli:main"
+
+[build-system]
+requires = ["setuptools>=70.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
