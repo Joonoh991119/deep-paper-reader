@@ -1,9 +1,8 @@
 # ═══════════════════════════════════════════════════════════════
 # Deep Paper Reader — Requirements
-# Primary choice 구성 기준 (pipeline_config.yaml)
 #
-# LOCAL models:  Qwen3-VL-8B, MinerU, BGE-M3
-# API models:    DeepSeek-R1 (free), Gemini Flash (free fallback)
+# LOCAL models:  Qwen3.5-27B Q8 (VLM, ~29GB), MinerU, BGE-M3
+# API models:    qwen/qwen3.6-plus:free via OpenRouter ($0)
 # ═══════════════════════════════════════════════════════════════
 
 # ─── Core ───────────────────────────────────────────────────────
@@ -12,50 +11,39 @@ pyyaml>=6.0
 rich>=13.0
 
 # ─── PDF Parsing: MinerU ────────────────────────────────────────
-# MinerU 내부에 DocLayout-YOLO, UniMERNet, PaddleOCR, StructEqTable 포함
-# 설치 시 모델 가중치 자동 다운로드 (~5GB)
-# GPU VRAM: ~6GB / CPU 모드 가능
+# MinerU 내장: DocLayout-YOLO, UniMERNet, PaddleOCR, StructEqTable
+# GPU ~6GB / CPU 모드 가능
 magic-pdf[full]
 pymupdf>=1.24.0
 Pillow>=10.0
 
-# ─── Local VLM: Qwen3-VL-8B ────────────────────────────────────
-# Figure 해석용 비전-언어 모델 (Stage 1 + Stage 3)
-# GPU VRAM: ~16GB (bf16) | 모델 가중치: ~16GB
-# 모델 ID: Qwen/Qwen3-VL-8B-Instruct
-torch>=2.1.0
-transformers>=4.45.0
-accelerate>=0.30.0
-qwen-vl-utils>=0.0.14
+# ─── Local VLM: Qwen3.5-27B (via Ollama or MLX) ────────────────
+# Ollama가 모델 서빙 — Python에서 HTTP client로 호출
+# ollama pull qwen3.5:27b-q8_0  (~29GB, 32GB 할당으로 실행)
+# 대안: pip install mlx-vlm (Apple Silicon 최적화, ~20-30% 빠름)
+httpx>=0.27.0
+ollama>=0.4.0
 
 # ─── Local Embedding: BGE-M3 ───────────────────────────────────
-# 다중 레벨 임베딩 (L0~L4)
-# GPU VRAM: ~2GB | dense + sparse 하이브리드
-# 모델 ID: BAAI/bge-m3
+# ~2GB | dense + sparse 하이브리드
 FlagEmbedding>=1.2.0
 sentence-transformers>=3.0.0
+torch>=2.1.0
 
-# ─── API Client: DeepSeek (free tier) ──────────────────────────
-# 추론 LLM — 논증 추출, 가설 형식화, 예측, 토론 분석, 리뷰
-# OpenAI-compatible API 사용
-# 환경변수: DEEPSEEK_API_KEY
+# ─── API Client: OpenRouter (qwen3.6-plus:free) ────────────────
+# 추론 전체: 논증/가설/예측/토론/리뷰 — $0/M tokens
+# OpenAI-compatible → openai 패키지 사용
 openai>=1.50.0
 
-# ─── API Client: Gemini Flash (free tier fallback) ─────────────
-# DeepSeek 장애 시 대체용
-# 환경변수: GOOGLE_API_KEY
+# ─── API Client: Gemini Flash (free fallback) ──────────────────
 google-genai>=1.0.0
 
-# ─── Zotero Integration ────────────────────────────────────────
-# 논문 소스 — Zotero 라이브러리에서 PDF 가져오기
-# 환경변수: ZOTERO_API_KEY, ZOTERO_LIBRARY_ID
+# ─── Zotero ────────────────────────────────────────────────────
 pyzotero>=1.5.0
 
 # ─── Feedback Web UI ───────────────────────────────────────────
-# 연구자 피드백 수집용 웹 인터페이스
-# http://localhost:8501
 fastapi>=0.115.0
 uvicorn>=0.30.0
 
-# ─── Database (feedback storage) ───────────────────────────────
+# ─── Database ──────────────────────────────────────────────────
 sqlalchemy>=2.0

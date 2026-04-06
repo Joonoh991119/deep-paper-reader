@@ -184,6 +184,15 @@ def create_llm_backend(model_name: str, **kwargs) -> LLMBackend:
     elif "gemini" in model_name.lower():
         return GeminiLLM(model=model_name, **kwargs)
 
+    elif "openrouter" in model_name.lower() or "qwen/" in model_name.lower():
+        # OpenRouter: qwen/qwen3.6-plus:free etc.
+        import os
+        return OpenAICompatibleLLM(
+            model=model_name,
+            base_url=kwargs.get("base_url", "https://openrouter.ai/api/v1"),
+            api_key=kwargs.get("api_key", os.getenv("OPENROUTER_API_KEY", "")),
+        )
+
     elif "deepseek" in model_name.lower():
         return OpenAICompatibleLLM(
             model=model_name,
@@ -191,13 +200,6 @@ def create_llm_backend(model_name: str, **kwargs) -> LLMBackend:
             **{k: v for k, v in kwargs.items() if k != "base_url"},
         )
 
-    elif "qwen" in model_name.lower():
-        return OpenAICompatibleLLM(
-            model=model_name,
-            base_url=kwargs.get("base_url", "http://localhost:8000/v1"),
-            **{k: v for k, v in kwargs.items() if k != "base_url"},
-        )
-
     else:
-        # Default to OpenAI-compatible
+        # Default to OpenAI-compatible (local vLLM, Ollama text, etc.)
         return OpenAICompatibleLLM(model=model_name, **kwargs)

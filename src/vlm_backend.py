@@ -276,19 +276,93 @@ class GeminiVisionBackend(VLMBackend):
         return self._run_inference(image_path, full_prompt)
 
 
+# ─── Ollama Backend (Local, for Qwen3.5 VLM) ───────────────────
+
+class OllamaVLMBackend(VLMBackend):
+    """Ollama-served VLM (Qwen3.5-27B etc.) via HTTP API."""
+
+    def __init__(
+        self,
+        model: str = "qwen3.5:27b-q8_0",
+        base_url: str = "http://localhost:11434",
+        max_tokens: int = 2048,
+    ):
+        self.model = model
+        self.base_url = base_url
+        self.max_tokens = max_tokens
+
+    def _run_inference(self, image_path: str, prompt: str) -> str:
+        import httpx
+        import json
+
+        img_data = _load_image_base64(image_path)
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                    "images": [img_data],
+                }
+            ],
+            "stream": False,
+            "options": {
+                "num_predict": self.max_tokens,
+                "temperature": 0.1,
+            },
+        }
+
+        response = httpx.post(
+            f"{self.base_url}/api/chat",
+            json=payload,
+            timeout=300.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get("message", {}).get("content", "")
+
+    def describe_figure(self, image_path: str, caption: str) -> str:
+        prompt = (
+            "You are a scientific figure analyst. Provide a brief structural description.\n"
+            "Focus on: chart type, axes, number of conditions, error bars, "
+            "statistical annotations, notable patterns.\n"
+            "Keep under 100 words. Be factual.\n\n"
+            f"Caption: {caption}"
+        )
+        return self._run_inference(image_path, prompt)
+
+    def interpret_figure(
+        self,
+        image_path: str,
+        caption: str,
+        context_paragraph: str,
+        structured_prompt: str,
+    ) -> str:
+        full_prompt = structured_prompt.format(
+            caption=caption,
+            context_paragraph=context_paragraph,
+        )
+        return self._run_inference(image_path, full_prompt)
+
+
 # ─── Factory ────────────────────────────────────────────────────
 
 _BACKENDS: dict[str, type[VLMBackend]] = {
+    "qwen3.5-27b": OllamaVLMBackend,
+    "qwen3.5-9b": OllamaVLMBackend,
     "qwen3-vl-8b": Qwen3VLBackend,
     "qwen3-vl-72b": Qwen3VLBackend,
     "qwen2.5-vl-72b": Qwen3VLBackend,
-    "internvl3-8b": Qwen3VLBackend,  # Similar HF interface
+    "internvl3-8b": Qwen3VLBackend,
     "claude-sonnet-4": ClaudeVisionBackend,
     "gemini-2.5-pro": GeminiVisionBackend,
     "gemini-2.5-flash": GeminiVisionBackend,
 }
 
 _MODEL_IDS: dict[str, str] = {
+    "qwen3.5-27b": "qwen3.5:27b-q8_0",
+    "qwen3.5-9b": "qwen3.5:9b",
     "qwen3-vl-8b": "Qwen/Qwen3-VL-8B-Instruct",
     "qwen3-vl-72b": "Qwen/Qwen3-VL-72B-Instruct",
     "qwen2.5-vl-72b": "Qwen/Qwen2.5-VL-72B-Instruct",
@@ -309,7 +383,9 @@ def create_vlm_backend(model_name: str, **kwargs) -> VLMBackend:
 
     model_id = _MODEL_IDS.get(model_name, model_name)
 
-    if backend_cls == Qwen3VLBackend:
+    if backend_cls == OllamaVLMBackend:
+        return backend_cls(model=model_id, **kwargs)
+    elif backend_cls == Qwen3VLBackend:
         return backend_cls(model_id=model_id, **kwargs)
     elif backend_cls == ClaudeVisionBackend:
         return backend_cls(model=model_id, **kwargs)

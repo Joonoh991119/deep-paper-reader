@@ -10,16 +10,16 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                   실행 환경 분류                              │
 ├─────────────────────────────┬───────────────────────────────┤
-│       🖥️  LOCAL (GPU)        │       🌐 API (무료만)          │
+│       🖥️  LOCAL (GPU/MPS)    │       🌐 API (무료만)          │
 ├─────────────────────────────┼───────────────────────────────┤
-│ Qwen3-VL-8B       (16GB)   │ DeepSeek-R1  (무료 tier)      │
-│ MinerU / magic-pdf (~6GB)  │ Gemini Flash (무료 tier, 대체) │
-│ BGE-M3             (~2GB)  │ Zotero Web API (무료)         │
-│ PaddleOCR          (~1GB)  │                               │
-│ DocLayout-YOLO     (~1GB)  │                               │
+│ Qwen3.5-27B Q8     (~29GB) │ qwen3.6-plus:free (OpenRouter)│
+│ MinerU / magic-pdf (~6GB)  │ Gemini Flash (fallback)       │
+│ BGE-M3             (~2GB)  │ Zotero Web API               │
 ├─────────────────────────────┼───────────────────────────────┤
-│ 총 GPU VRAM: ~20GB         │ 총 비용: $0                   │
-│ 총 디스크:   ~15GB         │                               │
+│ VLM 할당: 최대 32GB        │ 총 비용: $0                   │
+│ 총 시스템: 64GB            │                               │
+│ (Mac Studio M2 Ultra /     │                               │
+│  Mac Mini M4 Pro)          │                               │
 └─────────────────────────────┴───────────────────────────────┘
 ```
 
@@ -42,27 +42,29 @@
 pip install -U "magic-pdf[full]" --extra-index-url https://wheels.myhloli.com
 ```
 
-### 1.2 Qwen3-VL-8B — 비전-언어 모델 (Figure 해석)
+### 1.2 Qwen3.5-27B — 비전-언어 모델 (Figure 해석)
 
 | 항목 | 값 |
 |---|---|
 | 역할 | Stage 1: 그림 초기 설명 / Stage 3: 그림 심층 해석 (축, 범례, 데이터 추정) |
-| 모델 ID | `Qwen/Qwen3-VL-8B-Instruct` |
-| GPU VRAM | ~16 GB (bf16) |
-| 디스크 | ~16 GB |
+| 모델 | Qwen3.5-27B (네이티브 VLM — 텍스트+이미지 early fusion) |
+| 양자화 | Q8_0 (~29GB) — 32GB 할당 내 최고 품질 |
+| 서빙 | Ollama 또는 MLX-VLM (Apple Silicon 최적화) |
 | 라이선스 | Apache 2.0 |
 
 ```bash
-pip install transformers>=4.45.0 torch>=2.1.0 accelerate>=0.30.0
-pip install qwen-vl-utils>=0.0.14
+# Option A: Ollama (권장 — 간편)
+brew install ollama        # macOS
+ollama pull qwen3.5:27b    # Q4 기본 (~16GB) 또는
+ollama pull qwen3.5:27b-q8_0  # Q8 (~29GB, 최고 품질)
+ollama serve               # http://localhost:11434
 
-# 모델 다운로드 (첫 실행 시 자동, 또는 수동)
-python -c "
-from transformers import AutoProcessor, AutoModelForCausalLM
-AutoProcessor.from_pretrained('Qwen/Qwen3-VL-8B-Instruct')
-AutoModelForCausalLM.from_pretrained('Qwen/Qwen3-VL-8B-Instruct')
-"
+# Option B: MLX-VLM (Apple Silicon 최적화, ~20-30% 빠름)
+pip install mlx-vlm
+mlx_vlm.server --model mlx-community/Qwen3.5-27B-8bit --port 8080
 ```
+
+**참고**: Qwen3.5-27B는 Qwen3-VL 시리즈의 상위 호환. 27B dense 전체 활성으로 MoE 모델(35B-A3B의 활성 3B)보다 figure 해석 품질 우월.
 
 ### 1.3 BGE-M3 — 임베딩 모델
 
@@ -111,32 +113,38 @@ pip install sqlalchemy>=2.0
 
 ## 2. API 호출 항목 (External APIs — 무료만)
 
-### 2.1 DeepSeek-R1 — 추론 LLM (Primary)
+### 2.1 OpenRouter — Qwen3.6-Plus:free (추론 LLM)
 
 | 항목 | 값 |
 |---|---|
 | 역할 | Stage 2: 논증 추출, 가설 형식화 / Stage 3: 예측 생성, 예측-관찰 매칭 / Stage 4: 토론 분석 / Review Agent |
-| API Endpoint | `https://api.deepseek.com/v1/chat/completions` |
-| 모델명 | `deepseek-reasoner` (R1) 또는 `deepseek-chat` (V3) |
-| 가격 | 무료 tier 제공 (가입 시 크레딧) |
+| API Endpoint | `https://openrouter.ai/api/v1/chat/completions` |
+| 모델명 | `qwen/qwen3.6-plus:free` |
+| 가격 | $0/M input tokens, $0/M output tokens |
+| Context | 1,000,000 tokens |
+| 특성 | Hybrid architecture (linear attention + sparse MoE), CoT reasoning |
 | 프로토콜 | OpenAI-compatible API |
 
 ```bash
-# API 키 발급: https://platform.deepseek.com/api_keys
-export DEEPSEEK_API_KEY="sk-your-key-here"
+# API 키 발급: https://openrouter.ai/settings/keys
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
 
-# 설치
-pip install openai>=1.50.0  # OpenAI-compatible client 사용
+# 설치 (OpenAI-compatible client)
+pip install openai>=1.50.0
+
+# 테스트
+python -c "
+from openai import OpenAI
+client = OpenAI(base_url='https://openrouter.ai/api/v1', api_key='sk-or-v1-...')
+r = client.chat.completions.create(
+    model='qwen/qwen3.6-plus:free',
+    messages=[{'role':'user','content':'Hello'}]
+)
+print(r.choices[0].message.content)
+"
 ```
 
-**참고**: DeepSeek-R1을 로컬에서 돌릴 수도 있음 (70B+ 모델, multi-GPU 필요).
-로컬 배포 시 vLLM 또는 SGLang 사용:
-```bash
-# 로컬 배포 (선택사항 — GPU 여유 시)
-pip install vllm
-vllm serve deepseek-ai/DeepSeek-R1-Distill-Qwen-32B --port 8000
-# pipeline_config.yaml에서 base_url을 http://localhost:8000/v1 로 변경
-```
+**참고**: 무료 tier는 preview 기간 한정일 수 있음. 프롬프트/완성 데이터가 모델 개선에 사용될 수 있으므로 미공개 논문은 로컬 모델만 사용.
 
 ### 2.2 Gemini Flash — 추론 LLM (Fallback)
 
@@ -217,8 +225,8 @@ sqlalchemy>=2.0
 ```bash
 # .env 파일 또는 shell profile에 추가
 
-# DeepSeek (무료) — 추론 LLM
-export DEEPSEEK_API_KEY="sk-..."
+# OpenRouter (무료) — 추론 LLM 전체
+export OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Gemini (무료) — 대체 추론 LLM
 export GOOGLE_API_KEY="AIza..."
@@ -232,30 +240,15 @@ export ZOTERO_LIBRARY_ID="..."
 
 ## 5. 하드웨어 요구사항
 
-### 최소 사양 (API 모드)
-- CPU: 8코어
-- RAM: 16 GB
-- GPU: 없어도 가능 (MinerU CPU 모드 + 모든 추론 API)
-- 디스크: 10 GB
+### 현재 구성 (Mac Studio M2 Ultra / Mac Mini M4 Pro, 64GB)
+- **총 RAM**: 64 GB unified memory
+- **VLM 할당**: 32 GB → Qwen3.5-27B Q8 (~29GB)
+- **나머지**: MinerU (~6GB) + BGE-M3 (~2GB) — VLM과 순차 실행
+- **디스크**: ~35 GB (모델 가중치)
 
-### 권장 사양 (로컬 모델 전체)
-- CPU: 8+ 코어
-- RAM: 32 GB
-- **GPU: NVIDIA 24GB VRAM** (RTX 4090 / A5000 / etc.)
-  - Qwen3-VL-8B: ~16 GB
-  - MinerU: ~6 GB
-  - BGE-M3: ~2 GB
-  - (동시 실행하지 않으므로 24GB면 충분)
-- 디스크: 30 GB (모델 가중치 포함)
-
-### Mac Studio (M2 Max Ultra) 사용 시
-- `gpu_device: "mps"` 로 변경
-- Qwen3-VL-8B: MPS 호환 (unified memory 활용)
-- MinerU: CPU 모드 또는 MPS
-
-### GPU 서버 확장 시
-- Qwen3-VL-72B: 80GB+ VRAM (2× A100 또는 H100)
-- DeepSeek-R1 로컬: 70B+ 모델, multi-GPU + vLLM
+### 최소 사양 (API-only 모드)
+- CPU: 8코어, RAM: 16 GB, GPU 불필요
+- MinerU CPU 모드 + 모든 추론 OpenRouter API
 
 ---
 
@@ -275,17 +268,22 @@ pip install -r requirements.txt
 
 # 4. 환경변수
 cp .env.example .env
-# .env 편집하여 API 키 입력
+# .env 편집하여 OPENROUTER_API_KEY 등 입력
 
-# 5. Zotero에서 논문 목록 확인
+# 5. Ollama로 VLM 설치 + 실행
+brew install ollama
+ollama pull qwen3.5:27b-q8_0    # ~29GB 다운로드
+ollama serve                      # 백그라운드 실행
+
+# 6. Zotero에서 논문 목록 확인
 python -c "from src.zotero_client import zotero_list_command; zotero_list_command()"
 
-# 6. 논문 처리
+# 7. 논문 처리
 python -m src.pipeline /path/to/paper.pdf -o ./output
 
-# 7. 피드백 웹 UI 실행
+# 8. 피드백 웹 UI 실행
 uvicorn src.feedback_loop.web_ui:app --port 8501
-# → http://localhost:8501 에서 접속
+# → http://localhost:8501
 ```
 
 ---
@@ -293,27 +291,27 @@ uvicorn src.feedback_loop.web_ui:app --port 8501
 ## 7. 모델별 역할 매핑 (한눈에)
 
 ```
-Pipeline Stage          Model              Where      Cost
-─────────────────────────────────────────────────────────────
-Stage 1: PDF 파싱       MinerU             🖥️ Local    Free
-Stage 1: 레이아웃       DocLayout-YOLO     🖥️ Local    Free  (MinerU 내장)
-Stage 1: OCR            PaddleOCR          🖥️ Local    Free  (MinerU 내장)
-Stage 1: 수식 인식      UniMERNet          🖥️ Local    Free  (MinerU 내장)
-Stage 1: 표 인식        StructEqTable      🖥️ Local    Free  (MinerU 내장)
-Stage 1: 그림 설명      Qwen3-VL-8B        🖥️ Local    Free
-─────────────────────────────────────────────────────────────
-Stage 2: 논증 추출      DeepSeek-R1        🌐 API     Free tier
-Stage 2: 가설 형식화    DeepSeek-R1        🌐 API     Free tier
-─────────────────────────────────────────────────────────────
-Stage 3: 그림 해석      Qwen3-VL-8B        🖥️ Local    Free
-Stage 3: 예측 생성      DeepSeek-R1        🌐 API     Free tier
-Stage 3: 예측 매칭      DeepSeek-R1        🌐 API     Free tier
-─────────────────────────────────────────────────────────────
-Stage 4: 토론 분석      DeepSeek-R1        🌐 API     Free tier
-─────────────────────────────────────────────────────────────
-Review Agent            DeepSeek-R1        🌐 API     Free tier
-Embedding               BGE-M3             🖥️ Local    Free
-Paper Source            Zotero API         🌐 API     Free
-─────────────────────────────────────────────────────────────
-Fallback LLM            Gemini 2.5 Flash   🌐 API     Free tier
+Pipeline Stage          Model                    Where       Cost
+──────────────────────────────────────────────────────────────────
+Stage 1: PDF 파싱       MinerU                   🖥️ Local     Free
+Stage 1: 레이아웃       DocLayout-YOLO           🖥️ Local     Free (MinerU 내장)
+Stage 1: OCR            PaddleOCR                🖥️ Local     Free (MinerU 내장)
+Stage 1: 수식 인식      UniMERNet                🖥️ Local     Free (MinerU 내장)
+Stage 1: 표 인식        StructEqTable            🖥️ Local     Free (MinerU 내장)
+Stage 1: 그림 설명      Qwen3.5-27B Q8 (Ollama)  🖥️ Local     Free
+──────────────────────────────────────────────────────────────────
+Stage 2: 논증 추출      qwen3.6-plus:free        🌐 OpenRouter  $0
+Stage 2: 가설 형식화    qwen3.6-plus:free        🌐 OpenRouter  $0
+──────────────────────────────────────────────────────────────────
+Stage 3: 그림 심층해석  Qwen3.5-27B Q8 (Ollama)  🖥️ Local     Free
+Stage 3: 예측 생성      qwen3.6-plus:free        🌐 OpenRouter  $0
+Stage 3: 예측 매칭      qwen3.6-plus:free        🌐 OpenRouter  $0
+──────────────────────────────────────────────────────────────────
+Stage 4: 토론 분석      qwen3.6-plus:free        🌐 OpenRouter  $0
+──────────────────────────────────────────────────────────────────
+Review Agent            qwen3.6-plus:free        🌐 OpenRouter  $0
+Embedding               BGE-M3                   🖥️ Local     Free
+Paper Source            Zotero API               🌐 Zotero     Free
+──────────────────────────────────────────────────────────────────
+Fallback LLM            Gemini 2.5 Flash         🌐 Google     Free tier
 ```

@@ -28,10 +28,15 @@ stage1:
   figure_format: "png"
   link_figures_to_captions: true
 
-  # Initial VLM Description — LOCAL ONLY
-  skeleton_vlm: "qwen3-vl-8b"  # Local inference only. No API calls.
+  # Initial VLM Description — LOCAL ONLY (Qwen3.5-27B native VLM)
+  # Qwen3.5-27B: 네이티브 비전-언어 모델 (텍스트+이미지 early fusion)
+  # Q8 양자화 시 ~29GB — Mac Studio/Mini 64GB 중 32GB 할당으로 실행
+  # Ollama: ollama run qwen3.5:27b-q8_0 | MLX: mlx-vlm 사용
+  # 32GB 한도 내 최강 VLM (Qwen3.5-122B-A10B Q4=81GB로 초과)
+  skeleton_vlm: "qwen3.5-27b"
+  skeleton_vlm_quantization: "q8_0"  # Q8: ~29GB (32GB 내 최고 품질)
   skeleton_vlm_temperature: 0.1
-  skeleton_vlm_max_tokens: 256  # Keep initial descriptions brief
+  skeleton_vlm_max_tokens: 256
 
   # Chunking
   chunk_size: 512  # tokens — adjustable range: 256-2048
@@ -39,9 +44,13 @@ stage1:
 
 # ─── Stage 2: Argument Extraction ──────────────────────────────
 stage2:
-  # Reasoning LLM — prefer local, free API fallback only
-  reasoning_model: "deepseek-r1"  # Primary: DeepSeek-R1 (self-hosted or free API)
-  # Fallback: Gemini Flash (free tier). Claude/GPT NOT used (paid API).
+  # Reasoning LLM — OpenRouter API (Qwen3.6-Plus, 무료)
+  # Model: qwen/qwen3.6-plus:free
+  # Endpoint: https://openrouter.ai/api/v1 (OpenAI-compatible)
+  # 1M context, CoT reasoning, $0/M tokens
+  reasoning_model: "qwen/qwen3.6-plus:free"
+  reasoning_api_base: "https://openrouter.ai/api/v1"
+  reasoning_api_key_env: "OPENROUTER_API_KEY"
   reasoning_temperature: 0.2
   reasoning_max_tokens: 4096
 
@@ -62,9 +71,12 @@ stage2:
 
 # ─── Stage 3: Figure Deep Interpretation ───────────────────────
 stage3:
-  # Figure VLM — LOCAL ONLY (confirmed: Qwen3-VL self-hosted)
-  figure_vlm: "qwen3-vl-8b"  # Primary: Qwen3-VL-8B local. Upgrade: qwen3-vl-72b on GPU server
-  figure_vlm_temperature: 0.1  # Lower = more deterministic readings
+  # Figure VLM — LOCAL ONLY (Qwen3.5-27B Q8, 32GB 할당 내 최강)
+  # 네이티브 VLM: 텍스트+이미지 early fusion, Qwen3-VL 시리즈 상위 호환
+  # 27B dense 전체 활성 → MoE 3B 활성보다 figure 해석 품질 우월
+  figure_vlm: "qwen3.5-27b"
+  figure_vlm_quantization: "q8_0"  # ~29GB
+  figure_vlm_temperature: 0.1
   figure_vlm_max_tokens: 2048
 
   # Prediction Generation (uses reasoning_model from stage2)
@@ -112,9 +124,9 @@ embedding:
 
 # ─── Feedback Loop ─────────────────────────────────────────────
 feedback:
-  # Review Agent — uses same local model as reasoning
+  # Review Agent — same OpenRouter model as reasoning (무료)
   enable_review_agent: true
-  review_agent_model: "deepseek-r1"  # Local, no API cost
+  review_agent_model: "qwen/qwen3.6-plus:free"
   review_agent_temperature: 0.3
 
   # Scoring Thresholds
@@ -133,29 +145,35 @@ feedback:
 
 # ─── Data Policy ───────────────────────────────────────────────
 data_policy:
-  # Confirmed: local-first, free API only as fallback
-  allow_external_api: "free_only"  # "free_only" | "all" | "none"
+  allow_external_api: "free_only"
   free_apis:
-    - "deepseek"      # Free API tier
-    - "gemini-flash"   # Free tier via AI Studio
+    - "openrouter/qwen3.6-plus:free"  # 추론 전체
+    - "gemini-flash"                   # 대체용
   local_models:
-    - "qwen3-vl-8b"
-    - "qwen3-vl-72b"
-    - "deepseek-r1"
-    - "bge-m3"
-  never_send_unpublished: true  # Unpublished manuscripts: local only, always
+    - "qwen3.5-27b"    # VLM (figure 해석) — Ollama/MLX Q8, ~29GB
+    - "bge-m3"          # 임베딩 — ~2GB
+    - "mineru"          # PDF 파싱 — ~6GB
+  never_send_unpublished: true
 
 # ─── Infrastructure ────────────────────────────────────────────
 infrastructure:
-  # Local GPU
-  gpu_device: "cuda:0"  # or "mps" for Mac Studio
-  max_gpu_memory: "24GB"
+  # Hardware: Mac Studio M2 Max Ultra (64GB) / Mac Mini M4 Pro (64GB)
+  gpu_device: "mps"  # Apple Silicon unified memory
+  max_gpu_memory: "32GB"  # VLM에 할당 가능한 최대
+  total_system_memory: "64GB"
 
   # API Configuration — FREE ONLY
-  # anthropic_api_key_env: NOT USED (paid)
-  # openai_api_key_env: NOT USED (paid)
-  deepseek_api_key_env: "DEEPSEEK_API_KEY"  # Free tier
-  google_api_key_env: "GOOGLE_API_KEY"  # Gemini free tier via AI Studio
+  openrouter_api_key_env: "OPENROUTER_API_KEY"  # qwen3.6-plus:free
+  google_api_key_env: "GOOGLE_API_KEY"           # Gemini free tier (fallback)
+
+  # Local model serving
+  ollama:
+    enabled: true
+    vlm_model: "qwen3.5:27b-q8_0"  # ollama pull qwen3.5:27b-q8_0
+    base_url: "http://localhost:11434"
+    # 대안: mlx-vlm으로 직접 로드 (Apple Silicon 최적화, ~20-30% 빠름)
+    # pip install mlx-vlm
+    # mlx_vlm.server --model mlx-community/Qwen3.5-27B-8bit --port 8080
 
   # Zotero Integration — paper source
   zotero:
