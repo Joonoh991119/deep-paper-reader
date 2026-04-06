@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════
+# Deep Paper Reader — Requirements
+# Primary choice 구성 기준 (pipeline_config.yaml)
+#
+# LOCAL models:  Qwen3-VL-8B, MinerU, BGE-M3
+# API models:    DeepSeek-R1 (free), Gemini Flash (free fallback)
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Core ───────────────────────────────────────────────────────
+pydantic>=2.0
+pyyaml>=6.0
+rich>=13.0
+
+# ─── PDF Parsing: MinerU ────────────────────────────────────────
+# MinerU 내부에 DocLayout-YOLO, UniMERNet, PaddleOCR, StructEqTable 포함
+# 설치 시 모델 가중치 자동 다운로드 (~5GB)
+# GPU VRAM: ~6GB / CPU 모드 가능
+magic-pdf[full]
+pymupdf>=1.24.0
+Pillow>=10.0
+
+# ─── Local VLM: Qwen3-VL-8B ────────────────────────────────────
+# Figure 해석용 비전-언어 모델 (Stage 1 + Stage 3)
+# GPU VRAM: ~16GB (bf16) | 모델 가중치: ~16GB
+# 모델 ID: Qwen/Qwen3-VL-8B-Instruct
+torch>=2.1.0
+transformers>=4.45.0
+accelerate>=0.30.0
+qwen-vl-utils>=0.0.14
+
+# ─── Local Embedding: BGE-M3 ───────────────────────────────────
+# 다중 레벨 임베딩 (L0~L4)
+# GPU VRAM: ~2GB | dense + sparse 하이브리드
+# 모델 ID: BAAI/bge-m3
+FlagEmbedding>=1.2.0
+sentence-transformers>=3.0.0
+
+# ─── API Client: DeepSeek (free tier) ──────────────────────────
+# 추론 LLM — 논증 추출, 가설 형식화, 예측, 토론 분석, 리뷰
+# OpenAI-compatible API 사용
+# 환경변수: DEEPSEEK_API_KEY
+openai>=1.50.0
+
+# ─── API Client: Gemini Flash (free tier fallback) ─────────────
+# DeepSeek 장애 시 대체용
+# 환경변수: GOOGLE_API_KEY
+google-genai>=1.0.0
+
+# ─── Zotero Integration ────────────────────────────────────────
+# 논문 소스 — Zotero 라이브러리에서 PDF 가져오기
+# 환경변수: ZOTERO_API_KEY, ZOTERO_LIBRARY_ID
+pyzotero>=1.5.0
+
+# ─── Feedback Web UI ───────────────────────────────────────────
+# 연구자 피드백 수집용 웹 인터페이스
+# http://localhost:8501
+fastapi>=0.115.0
+uvicorn>=0.30.0
+
+# ─── Database (feedback storage) ───────────────────────────────
+sqlalchemy>=2.0
