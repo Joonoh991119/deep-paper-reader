@@ -42,13 +42,18 @@ embedding = [
 feedback = [
     "sqlalchemy>=2.0",
     "pydantic>=2.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+]
+
+# Zotero integration
+zotero = [
+    "pyzotero>=1.5.0",
 ]
 
 # Full installation
 all = [
-    "deep-paper-reader[parsing,vlm,api,embedding,feedback]",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.30.0",
+    "deep-paper-reader[parsing,vlm,api,embedding,feedback,zotero]",
     "pyyaml>=6.0",
     "rich>=13.0",          # CLI output
 ]

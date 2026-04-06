@@ -28,8 +28,8 @@ stage1:
   figure_format: "png"
   link_figures_to_captions: true
 
-  # Initial VLM Description
-  skeleton_vlm: "qwen3-vl-8b"  # Options: qwen3-vl-8b, qwen3-vl-72b, internvl3-8b, gemini-2.5-flash
+  # Initial VLM Description — LOCAL ONLY
+  skeleton_vlm: "qwen3-vl-8b"  # Local inference only. No API calls.
   skeleton_vlm_temperature: 0.1
   skeleton_vlm_max_tokens: 256  # Keep initial descriptions brief
 
@@ -39,8 +39,9 @@ stage1:
 
 # ─── Stage 2: Argument Extraction ──────────────────────────────
 stage2:
-  # Reasoning LLM
-  reasoning_model: "claude-sonnet-4"  # Options: claude-sonnet-4, deepseek-r1, gemini-2.5-pro, qwen3-235b
+  # Reasoning LLM — prefer local, free API fallback only
+  reasoning_model: "deepseek-r1"  # Primary: DeepSeek-R1 (self-hosted or free API)
+  # Fallback: Gemini Flash (free tier). Claude/GPT NOT used (paid API).
   reasoning_temperature: 0.2
   reasoning_max_tokens: 4096
 
@@ -61,8 +62,8 @@ stage2:
 
 # ─── Stage 3: Figure Deep Interpretation ───────────────────────
 stage3:
-  # Figure VLM
-  figure_vlm: "qwen3-vl-8b"  # Options: qwen3-vl-8b, qwen3-vl-72b, internvl3-78b, gemini-2.5-pro
+  # Figure VLM — LOCAL ONLY (confirmed: Qwen3-VL self-hosted)
+  figure_vlm: "qwen3-vl-8b"  # Primary: Qwen3-VL-8B local. Upgrade: qwen3-vl-72b on GPU server
   figure_vlm_temperature: 0.1  # Lower = more deterministic readings
   figure_vlm_max_tokens: 2048
 
@@ -90,9 +91,9 @@ stage4:
   identify_missing_alternatives: true
   max_tokens: 2048
 
-# ─── Embedding ─────────────────────────────────────────────────
+# ─── Embedding (confirmed: BGE-M3, no change planned) ──────────
 embedding:
-  model: "bge-m3"  # Options: bge-m3, qwen3-embedding-8b, voyage-3-large, cohere-embed-v4
+  model: "bge-m3"  # Confirmed: stay with BGE-M3 (already in CSNL stack)
   dimensions: 1024
   enable_sparse: true  # BGE-M3 sparse retrieval
   enable_multi_vector: false  # ColBERT-style — disable initially for simplicity
@@ -111,40 +112,67 @@ embedding:
 
 # ─── Feedback Loop ─────────────────────────────────────────────
 feedback:
-  # Review Agent
+  # Review Agent — uses same local model as reasoning
   enable_review_agent: true
-  review_agent_model: "claude-sonnet-4"  # Same model, different system prompt
-  review_agent_temperature: 0.3  # Slightly higher for diverse critiques
+  review_agent_model: "deepseek-r1"  # Local, no API cost
+  review_agent_temperature: 0.3
 
   # Scoring Thresholds
-  rerun_threshold: 2.5  # Average score below this triggers re-run consideration
-  parameter_adjust_threshold: 3  # Minimum papers with same suggestion before adjusting
+  rerun_threshold: 2.5
+  parameter_adjust_threshold: 3
 
-  # User Feedback
-  enable_user_feedback: false  # Enable when web UI is built
-  feedback_storage: "sqlite"  # or "postgresql"
+  # User Feedback — web interface (FastAPI)
+  enable_user_feedback: true  # Confirmed: build web UI
+  feedback_storage: "sqlite"
+  feedback_ui_port: 8501  # Streamlit or FastAPI port
 
   # Logging
   log_all_outputs: true
   log_review_scores: true
   log_parameter_changes: true
 
+# ─── Data Policy ───────────────────────────────────────────────
+data_policy:
+  # Confirmed: local-first, free API only as fallback
+  allow_external_api: "free_only"  # "free_only" | "all" | "none"
+  free_apis:
+    - "deepseek"      # Free API tier
+    - "gemini-flash"   # Free tier via AI Studio
+  local_models:
+    - "qwen3-vl-8b"
+    - "qwen3-vl-72b"
+    - "deepseek-r1"
+    - "bge-m3"
+  never_send_unpublished: true  # Unpublished manuscripts: local only, always
+
 # ─── Infrastructure ────────────────────────────────────────────
 infrastructure:
   # Local GPU
   gpu_device: "cuda:0"  # or "mps" for Mac Studio
-  max_gpu_memory: "24GB"  # Adjust based on available GPU
+  max_gpu_memory: "24GB"
 
-  # API Configuration
-  anthropic_api_key_env: "ANTHROPIC_API_KEY"
-  google_api_key_env: "GOOGLE_API_KEY"  # For Gemini fallback
-  
+  # API Configuration — FREE ONLY
+  # anthropic_api_key_env: NOT USED (paid)
+  # openai_api_key_env: NOT USED (paid)
+  deepseek_api_key_env: "DEEPSEEK_API_KEY"  # Free tier
+  google_api_key_env: "GOOGLE_API_KEY"  # Gemini free tier via AI Studio
+
+  # Zotero Integration — paper source
+  zotero:
+    enabled: true
+    library_type: "user"  # "user" or "group"
+    library_id_env: "ZOTERO_LIBRARY_ID"
+    api_key_env: "ZOTERO_API_KEY"
+    collection: null  # null = all collections
+    sync_attachments: true  # Download PDFs from Zotero storage
+    local_storage: "./zotero_pdfs/"
+
   # Processing
-  batch_size: 4  # Papers processed in parallel
-  timeout_per_stage: 300  # seconds
+  batch_size: 4
+  timeout_per_stage: 300
   retry_on_failure: 2
 
   # Output
   output_dir: "./output"
-  output_format: "yaml"  # Options: yaml, json
-  save_intermediate: true  # Save each stage's output separately
+  output_format: "yaml"
+  save_intermediate: true

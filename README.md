@@ -340,41 +340,17 @@ dpr batch ./papers/ --output-dir ./output --parallel 4
 
 ---
 
-## Decision Points for CSNL (확인 필요 사항)
+## Confirmed Decisions (2026-04-06)
 
-> **These items require J's confirmation before implementation:**
-
-### ✅ Confirmed Defaults
-- BGE-M3 as primary embedding model (already in CSNL stack)
-- MinerU as primary PDF parser (best open-source benchmark scores)
-- Claude Sonnet 4 for reasoning stages (API access assumed)
-
-### ❓ Needs Confirmation
-
-1. **VLM for Figure Interpretation**: Qwen3-VL-72B (self-hosted on GPU server) vs. Gemini 2.5 Pro (API)?
-   - Self-hosted: No data leaves lab, but needs GPU memory
-   - API: Better accuracy on some benchmarks, but data goes to Google
-   - **Recommendation**: Start with Qwen3-VL-8B locally, upgrade to 72B or API as needed
-
-2. **Embedding Upgrade Path**: Stay with BGE-M3 or evaluate Qwen3-Embedding-8B?
-   - Qwen3-Embedding-8B has significantly higher MTEB scores (70.58 vs 63.0)
-   - But requires more GPU memory (~16GB vs ~2GB for BGE-M3)
-   - **Recommendation**: Benchmark both on 10 GRM papers, then decide
-
-3. **Data Policy for API Calls**: Which stages can use external APIs?
-   - Stage 1 (parsing): Can this be API-based? (less sensitive — structural only)
-   - Stage 2/3 (argument/figure): These contain full paper content — API OK for published papers?
-   - **Recommendation**: Self-host all stages for unpublished manuscripts; API OK for published
-
-4. **Feedback Loop Scope**: Automated review agent only, or also build user feedback UI?
-   - Automated-only is faster to implement
-   - User feedback UI requires web interface (FastAPI + simple frontend)
-   - **Recommendation**: Start automated-only, add user feedback in Phase C
-
-5. **Target Journal Scope**: Start with which journals?
-   - Neuroscience-specific: Nature Neuroscience, Neuron, Journal of Neuroscience, eLife Neuroscience
-   - Broader: Also include vision science (JoV, Vision Research)?
-   - **Recommendation**: Start with 10 papers from GRM archive across 3-4 journals
+| Decision | Choice | Rationale |
+|---|---|---|
+| **VLM for figures** | Qwen3-VL-8B (local) | No data leaves lab. Upgrade to 72B on GPU server later. |
+| **Embedding model** | BGE-M3 (keep) | Already in CSNL stack. No change needed. |
+| **API policy** | Free only, prefer local | DeepSeek free API + Gemini Flash free tier as fallbacks. No paid APIs. |
+| **Feedback UI** | Web interface (FastAPI/Streamlit) | Build user feedback UI for researcher corrections. |
+| **Paper source** | Zotero DB first | Start with J's Zotero library. Zotero API integration included. |
+| **Reasoning LLM** | DeepSeek-R1 (local or free API) | Free, visible chain-of-thought, strong math reasoning. |
+| **Review Agent** | DeepSeek-R1 (same) | Consistency with reasoning model, no cost. |
 
 ---
 
