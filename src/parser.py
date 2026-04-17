@@ -279,7 +279,10 @@ def parse_pdf(pdf_path: str | Path) -> ParsedPaper:
         full_text_parts: list[str] = []
         for page in doc:
             full_text_parts.append(page.get_text("text"))
-        full_text = "\n".join(full_text_parts)
+        # Postgres text columns reject NUL (0x00); PDFs occasionally smuggle
+        # them in from non-UTF8 fonts or broken encoders. Strip once at the
+        # source rather than per-column later.
+        full_text = "\n".join(full_text_parts).replace("\x00", "")
         sections = split_text_into_sections(full_text)
         abstract = next(
             (s.text for s in sections if s.section_type == "abstract"),
