@@ -1,0 +1,11 @@
+{
+  "phase": 8,
+  "step": "done",
+  "started_at": "2026-04-17T21:18:00+09:00",
+  "last_update": "2026-04-18T00:50:00+09:00",
+  "retry_count": 0,
+  "reason": "pipeline operational end-to-end on 3 papers; both PRs opened",
+  "next_action": null,
+  "degraded": false,
+  "blocked": false
+}
